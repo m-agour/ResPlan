@@ -54,7 +54,7 @@ And here is the same plan with its graph overlay:
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/ResPlan.git
+git clone https://github.com/m-agour/ResPlan.git
 cd ResPlan
 
 pip install shapely geopandas matplotlib networkx numpy opencv-python
