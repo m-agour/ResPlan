@@ -61,3 +61,26 @@ pip install shapely geopandas matplotlib networkx numpy opencv-python
 
 ```
 then, run `ResPlan_demo.ipynb`
+
+
+## Citation
+
+If you use **ResPlan** in research, please cite:
+
+[![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2508.14006-blue)](https://doi.org/10.48550/arXiv.2508.14006)
+
+**Plain text**
+
+Abouagour, M., & Garyfallidis, E. (2025). *ResPlan: A Large-Scale Vector-Graph Dataset of 17,000 Residential Floor Plans*. arXiv:2508.14006. https://doi.org/10.48550/arXiv.2508.14006
+
+**BibTeX (paper)**
+
+```bibtex
+@article{AbouagourGaryfallidis2025ResPlan,
+  title   = {ResPlan: A Large-Scale Vector-Graph Dataset of 17,000 Residential Floor Plans},
+  author  = {Abouagour, Mohamed and Garyfallidis, Eleftherios},
+  journal = {arXiv preprint arXiv:2508.14006},
+  year    = {2025},
+  doi     = {10.48550/arXiv.2508.14006},
+  url     = {https://arxiv.org/abs/2508.14006}
+}
