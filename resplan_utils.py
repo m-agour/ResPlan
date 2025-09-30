@@ -89,6 +89,17 @@ def centroid(poly: Union[Polygon, MultiPolygon]) -> Point:
         return largest.centroid
     return Point(-1e6, -1e6)
 
+def area(poly: Union[Polygon, MultiPolygon]) -> float:
+    """Area for Polygon/MultiPolygon (sum of parts, holes respected)."""
+    if isinstance(poly, Polygon):
+        return 0.0 if poly.is_empty else float(poly.area)
+    if isinstance(poly, MultiPolygon):
+        if poly.is_empty or len(poly.geoms) == 0:
+            return 0.0
+        return float(sum(p.area for p in poly.geoms if p is not None and not p.is_empty))
+    return 0.0
+
+
 def perturb_polygon(polygon: Polygon, x_range: Tuple[float, float]=(-2, 2),
                     y_range: Tuple[float, float]=(-2, 2)) -> Polygon:
     """Apply random per-vertex perturbation to a polygon."""
@@ -381,3 +392,27 @@ def plot_plan_and_graph(plan: Dict[str, Any],
         ax.set_title(title)
     plt.tight_layout()
     return ax
+
+# -----------------------------
+# Plan rescaling helpers
+# -----------------------------
+
+def compute_scale_from_meta(fp: Dict[str, Any]) -> float:
+    """Compute isotropic scale s = sqrt(meta_area / inner_area)."""
+    meta_area = fp.get("area", None)
+    inner = fp.get("inner", None)
+    inner_area = area(inner) if inner is not None else 0.0
+    if meta_area is None or meta_area <= 0 or inner_area <= 0:
+        return 1.0
+    return math.sqrt(float(meta_area) / float(inner_area))
+
+
+def rescale_plan(fp: Dict[str, Any], scale: float, size: int = 256) -> Dict[str, Any]:
+    """Return a shallow copy of plan with all geometries rescaled about (0,0)."""
+    plan = normalize_keys(dict(fp))
+    for k, g in list(plan.items()):
+        if isinstance(g, base.BaseGeometry) and not g.is_empty:
+            # scale about origin (0,0); no rotation or flip
+            plan[k] = affinity.scale(g, xfact=scale, yfact=scale, origin=(0.0, 0.0))
+    plan["graph"] = plan_to_graph(plan)  # rebuild graph to keep areas consistent
+    return plan
