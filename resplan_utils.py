@@ -27,7 +27,7 @@ import networkx as nx
 from shapely.geometry import (
     Polygon, MultiPolygon, LineString, MultiLineString, Point, GeometryCollection, base, box
 )
-from shapely.ops import unary_union
+from shapely.ops import unary_union, transform
 from shapely import affinity
 
 # -----------------------------
@@ -414,5 +414,34 @@ def rescale_plan(fp: Dict[str, Any], scale: float, size: int = 256) -> Dict[str,
         if isinstance(g, base.BaseGeometry) and not g.is_empty:
             # scale about origin (0,0); no rotation or flip
             plan[k] = affinity.scale(g, xfact=scale, yfact=scale, origin=(0.0, 0.0))
+    plan["graph"] = plan_to_graph(plan)  # rebuild graph to keep areas consistent
+    return plan
+
+# -----------------------------
+# Plan quantization
+# -----------------------------
+
+def quantize_geometry(g: base.BaseGeometry, step: float) -> base.BaseGeometry:
+    """Snap geometry coords to grid of size=step."""
+    if g is None or g.is_empty:
+        return g
+    inv = 1.0 / float(step)
+
+    def _rounder(x, y, z=None):
+        xr = np.rint(x * inv) / inv
+        yr = np.rint(y * inv) / inv
+        if z is None:
+            return xr, yr
+        zr = np.rint(z * inv) / inv
+        return xr, yr, zr
+
+    gq = transform(_rounder, g)
+    return gq if gq.is_valid else gq.buffer(0)
+
+def quantize_plan(fp: Dict[str, Any], step: float) -> Dict[str, Any]:
+    plan = normalize_keys(dict(fp))
+    for k, g in list(plan.items()):
+        if isinstance(g, base.BaseGeometry):
+            plan[k] = quantize_geometry(g, step)
     plan["graph"] = plan_to_graph(plan)  # rebuild graph to keep areas consistent
     return plan
