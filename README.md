@@ -1,12 +1,7 @@
 # ResPlan: A Large-Scale Vector-Graph Dataset of Residential Floor Plans
 
 
-This repository accompanies the paper:
-
-**[ResPlan: A Large-Scale Vector-Graph Dataset of 17,000 Residential Floor Plans](https://arxiv.org/abs/2508.14006)**  
-*Mohamed Abouagour, Eleftherios Garyfallidis*  
-
----
+f
 
 
 ## Overview
