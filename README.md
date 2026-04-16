@@ -1,8 +1,6 @@
 # ResPlan: A Large-Scale Vector-Graph Dataset of Residential Floor Plans
 
 
-f
-
 
 ## Overview
 
