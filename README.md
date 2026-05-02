@@ -38,6 +38,10 @@ And here is the same plan with its graph overlay:
   - Mask conversions
   - Plotting plans and graphs:contentReference[oaicite:0]{index=0}
 - `ResPlan.zip` – Containing the PKL file of the dataset (unzip first).
+  Geometries only; build the room-connectivity graph on demand with
+  `resplan_utils.plan_to_graph(plan)`. The
+  [Kaggle release](https://www.kaggle.com/datasets/resplan/resplan)
+  ships the same pickle with `plan["graph"]` already populated.
 
 ---
 

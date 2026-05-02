@@ -43,7 +43,9 @@ CATEGORY_COLORS: Dict[str, str] = {
     "window": "#a6d854",     # lime
     "wall": "#ffd92f",       # yellow
     "front_door": "#a63603", # dark reddish-brown
-    "balcony": "#b3b3b3"     # dark gray
+    "balcony": "#b3b3b3",    # dark gray
+    "storage": "#a37c52",    # brown
+    "stair": "#9e9ac8",      # purple
 }
 
 DEFAULT_CANVAS_SIZE = (256, 256)  # (H, W)
@@ -203,7 +205,7 @@ def plot_plan(plan: Dict[str, Any],
     """Plot a single plan with colored layers."""
     plan = normalize_keys(plan)
     if categories is None:
-        categories = ["living","bedroom","bathroom","kitchen","door","window","wall","front_door","balcony"]
+        categories = ["living","bedroom","bathroom","kitchen","storage","stair","door","window","wall","front_door","balcony"]
 
     geoms, color_list, present = [], [], []
     for key in categories:
@@ -245,65 +247,295 @@ def plot_plan(plan: Dict[str, Any],
 # -----------------------------
 
 def plan_to_graph(plan: Dict[str, Any],
-                  buffer_factor: float = 0.75) -> nx.Graph:
-    """Create a simple room graph: nodes are room parts; edges denote adjacency or connections via door/window."""
+                  buffer_factor: float = 0.007,
+                  open_passage_min_factor: float = 2.0) -> nx.Graph:
+    """Create a room connectivity graph from a floor plan.
+
+    Nodes represent functional spaces (living, kitchen, bedroom, bathroom,
+    balcony, storage, stair, front_door).  Edges encode spatial
+    relationships:
+
+    * **via_door** / **via_window** – two rooms bridged by a door or
+      window geometry (type-agnostic: any pair of rooms sharing a
+      connector).
+    * **via_opening** – two rooms whose shared boundary contains a
+      contiguous wall-free segment of length ≥ ``open_passage_min_factor
+      × wall_depth`` (open kitchens, archways, walk-throughs). Replaces
+      the old generic ``adjacency`` edge that fired on any buffered
+      overlap and produced spurious connections between rooms separated
+      by a wall.
+    * **direct** – front-door nodes linked to rooms they physically touch.
+
+    Two rooms separated by a wall with no door / window / open passage
+    receive **no edge** (the truthful answer: you cannot walk between
+    them). A nearest-neighbour fallback is used only as a last resort to
+    keep the graph connected for downstream code that assumes one
+    component.
+
+    The buffer size is *scale-aware*: ``buffer_factor × max(plan width,
+    plan height)``, which accounts for wall thickness across plans of
+    different coordinate scales.
+
+    Parameters
+    ----------
+    plan : dict
+        A ResPlan plan dictionary with Shapely geometry keys.
+    buffer_factor : float, optional
+        Fraction of plan extent used as the spatial buffer (default 0.007,
+        ≈ 1.8 px for a 256-unit canvas – just enough to bridge typical
+        walls).
+    open_passage_min_factor : float, optional
+        Minimum length of contiguous wall-free shared-boundary segment
+        required to declare an open passage between two rooms, in
+        multiples of ``wall_depth`` (default 2.0). Below this, small
+        gaps at corners / discretisation artefacts are ignored.
+
+    Returns
+    -------
+    nx.Graph
+        Room graph with node attributes ``geometry``, ``type``, ``area``
+        and edge attribute ``type``.
+    """
     plan = normalize_keys(plan)
     G = nx.Graph()
-    ww = float(plan.get("wall_width", 0.1) or 0.1)
-    buf = max(ww * buffer_factor, 0.01)
 
-    nodes_by_type: Dict[str, List[str]] = {k: [] for k in ["living","kitchen","bedroom","bathroom","balcony","front_door"]}
+    # --- scale-aware buffer ---
+    inner = plan.get("inner")
+    if inner is not None and not inner.is_empty:
+        x1, y1, x2, y2 = inner.bounds
+        plan_size = max(x2 - x1, y2 - y1)
+    else:
+        plan_size = 256.0
+    buf = max(plan_size * buffer_factor, 0.5)
+    wd = float(plan.get("wall_depth") or 4.0)
+    open_min = open_passage_min_factor * wd
 
-    # rooms
-    for room_type in ["living","kitchen","bedroom","bathroom","balcony"]:
-        parts = get_geometries(plan.get(room_type))
-        # for living, keep separate parts; user can union beforehand if desired
-        for i, geom in enumerate(parts):
+    all_nodes: List[str] = []
+
+    # Living: union all parts into a single node (standard convention)
+    living_parts = [p for p in get_geometries(plan.get("living"))
+                    if isinstance(p, Polygon) and not p.is_empty]
+    if living_parts:
+        living_geom = unary_union(living_parts)
+        if not living_geom.is_empty:
+            G.add_node("living_0", geometry=living_geom,
+                       type="living", area=living_geom.area)
+            all_nodes.append("living_0")
+
+    # Other room types: one node per polygon part. ``storage`` and
+    # ``stair`` were previously omitted, which silently dropped doors
+    # leading to those rooms from the graph.
+    for room_type in ["kitchen", "bedroom", "bathroom",
+                       "balcony", "storage", "stair"]:
+        for i, geom in enumerate(get_geometries(plan.get(room_type))):
             if isinstance(geom, Polygon) and not geom.is_empty:
                 nid = f"{room_type}_{i}"
                 G.add_node(nid, geometry=geom, type=room_type, area=geom.area)
-                nodes_by_type[room_type].append(nid)
+                all_nodes.append(nid)
 
-    # front door (may be line/polygon)
+    # Front door (may be line or polygon)
     for i, geom in enumerate(get_geometries(plan.get("front_door"))):
         nid = f"front_door_{i}"
-        G.add_node(nid, geometry=geom, type="front_door", area=getattr(geom, "area", 0.0))
-        nodes_by_type["front_door"].append(nid)
+        G.add_node(nid, geometry=geom, type="front_door",
+                   area=getattr(geom, "area", 0.0))
+        all_nodes.append(nid)
 
+    if not all_nodes:
+        return G
+
+    # Pre-buffer node geometries once
+    node_buf = {nid: G.nodes[nid]["geometry"].buffer(buf)
+                for nid in all_nodes}
+
+    # --- door / window connections (type-agnostic) ---
+    # A door spans exactly one wall and therefore connects exactly two
+    # rooms. When a door sits in the corner where ≥3 rooms meet, the
+    # naive "any room within buf" test creates spurious edges with the
+    # third room (e.g. plan 14926 d2: kitchen↔bedroom). To pick the
+    # correct two rooms we score each candidate by *contact length* —
+    # the length of the connector's boundary that lies inside the room
+    # (after a small buffer to bridge wall thickness). Real connections
+    # have a contact line ≈ the door's long side; corner overlaps
+    # produce only tiny intersections.
     doors  = get_geometries(plan.get("door"))
-    wins   = get_geometries(plan.get("window"))
-    conns  = [(d, "via_door") for d in doors] + [(w, "via_window") for w in wins]
+    windows = get_geometries(plan.get("window"))
 
-    # front_door → living
-    for fd in nodes_by_type["front_door"]:
-        fd_geom = G.nodes[fd]["geometry"]
-        for gen in nodes_by_type["living"]:
-            gen_geom = G.nodes[gen]["geometry"]
-            if fd_geom.intersects(gen_geom.buffer(buf)):
-                G.add_edge(fd, gen, type="direct")
+    def _contact_score(cgeom, room_geom):
+        try:
+            return cgeom.boundary.intersection(room_geom.buffer(buf * 0.6)).length
+        except Exception:
+            return 0.0
 
-    # adjacency: kitchen/bedroom ↔ living
-    for room_type in ["kitchen","bedroom"]:
-        for rn in nodes_by_type[room_type]:
-            rgeom = G.nodes[rn]["geometry"].buffer(buf)
-            for gen in nodes_by_type["living"]:
-                gen_geom = G.nodes[gen]["geometry"]
-                if rgeom.buffer(buf).intersects(gen_geom.buffer(buf)):
-                    G.add_edge(rn, gen, type="adjacency")
+    for conn_list, edge_type in [(doors, "via_door"),
+                                 (windows, "via_window")]:
+        for cgeom in conn_list:
+            touching = [n for n in all_nodes
+                        if cgeom.intersects(node_buf[n])]
+            if len(touching) <= 1:
+                continue
+            if len(touching) > 2:
+                # Score and keep the two rooms with the longest contact.
+                scored = sorted(
+                    ((n, _contact_score(cgeom, G.nodes[n]["geometry"]))
+                     for n in touching),
+                    key=lambda x: x[1], reverse=True)
+                # Drop candidates whose contact is < 25% of the best
+                # one — those are corner artefacts. Always keep at
+                # least the top-2 so we don't lose a valid edge.
+                best = scored[0][1]
+                kept = [scored[0][0], scored[1][0]]
+                for n, s in scored[2:]:
+                    if s >= 0.25 * best and s >= buf:
+                        kept.append(n)
+                touching = kept
+            for i in range(len(touching)):
+                for j in range(i + 1, len(touching)):
+                    if not G.has_edge(touching[i], touching[j]):
+                        G.add_edge(touching[i], touching[j],
+                                   type=edge_type)
 
-    # bathroom & balcony connections via door/window to living/bedroom
-    for room_type in ["bathroom","balcony"]:
-        for rn in nodes_by_type[room_type]:
-            rgeom = G.nodes[rn]["geometry"].buffer(buf)
-            for cgeom, ctype in conns:
-                if not cgeom.intersects(rgeom):
-                    continue
-                for target_type in ["living","bedroom"]:
-                    for tn in nodes_by_type[target_type]:
-                        tgeom = G.nodes[tn]["geometry"].buffer(buf)
-                        if cgeom.intersects(tgeom):
-                            if not G.has_edge(rn, tn):
-                                G.add_edge(rn, tn, type=ctype)
+    # --- front door → any room reachable through it (direct) ---
+    # The front door is itself a passage; treat it like an interior door:
+    # link it to rooms whose geometry it actually overlaps (after a small
+    # ``buf`` margin to bridge the wall band). Using a larger buffer here
+    # produced spurious links to rooms that merely sit close to the door
+    # on the other side of a wall (e.g. plan 11053 front_door↔bedroom_0).
+    for nid in all_nodes:
+        if G.nodes[nid]["type"] != "front_door":
+            continue
+        fd_geom = G.nodes[nid]["geometry"]
+        fd_buf = fd_geom.buffer(buf)
+        for other in all_nodes:
+            if other == nid or G.nodes[other]["type"] == "front_door":
+                continue
+            if fd_buf.intersects(G.nodes[other]["geometry"]):
+                if not G.has_edge(nid, other):
+                    G.add_edge(nid, other, type="direct")
+
+    # --- via_opening: rooms with a wall-free shared boundary ---
+    # The previous "adjacency" edge fired on any buffered overlap, which
+    # spuriously linked rooms separated by a wall (e.g. two bedrooms
+    # sharing a wall, or living↔kitchen through a 24cm wall band with no
+    # door). Real connections require a contiguous gap in the wall band
+    # along the shared boundary — this is what an open kitchen or
+    # archway looks like geometrically.
+    walls = plan.get("wall")
+    door_geom = plan.get("door")
+    win_geom  = plan.get("window")
+    obstacles = [g for g in (walls, door_geom, win_geom) if g is not None and not g.is_empty]
+    obstacle_union = unary_union(obstacles) if obstacles else None
+    # Doors and windows do not "block" — they are passages — but we want
+    # to claim them under via_door/via_window, which already happened
+    # above. So for residual via_opening detection we only treat *walls*
+    # as obstacles.
+    wall_buf_inner = walls.buffer(0.5) if (walls is not None and not walls.is_empty) else None
+
+    room_node_ids = [n for n in all_nodes
+                     if G.nodes[n]["type"] != "front_door"]
+    for i in range(len(room_node_ids)):
+        for j in range(i + 1, len(room_node_ids)):
+            a_id, b_id = room_node_ids[i], room_node_ids[j]
+            if G.has_edge(a_id, b_id):
+                continue
+            a = G.nodes[a_id]["geometry"]
+            b = G.nodes[b_id]["geometry"]
+            # Primary test: do the two room polygons, dilated by ~wd to
+            # cover the wall band but with the wall geometry subtracted,
+            # overlap on a region wider than ``open_min``? This is the
+            # "subtract walls and see if rooms touch" check — robust to
+            # boundary discretisation and corner cases.
+            edge_added = False
+            try:
+                a_d = a.buffer(wd * 0.55)
+                b_d = b.buffer(wd * 0.55)
+                gap = a_d.intersection(b_d)
+                if walls is not None and not walls.is_empty:
+                    gap = gap.difference(walls.buffer(0.0))
+                if not gap.is_empty:
+                    pieces = list(gap.geoms) if hasattr(gap, "geoms") else [gap]
+                    # An "opening" must be wide enough to walk through:
+                    # an extent of at least ``open_min`` in some
+                    # direction. Use the longest side of each piece's
+                    # bounding box as a cheap proxy.
+                    for pc in pieces:
+                        if pc.is_empty:
+                            continue
+                        x1p, y1p, x2p, y2p = pc.bounds
+                        extent = max(x2p - x1p, y2p - y1p)
+                        if extent >= open_min and pc.area >= wd * wd * 0.25:
+                            G.add_edge(a_id, b_id, type="via_opening")
+                            edge_added = True
+                            break
+            except Exception:
+                pass
+            if edge_added:
+                continue
+
+            # Fallback test: shared boundary segment with wall mask.
+            try:
+                contact = a.boundary.intersection(b.buffer(wd * 0.6))
+            except Exception:
+                continue
+            if contact.is_empty:
+                continue
+            total = contact.length
+            if total < open_min:
+                continue
+            if wall_buf_inner is not None:
+                try:
+                    open_seg = contact.difference(wall_buf_inner)
+                except Exception:
+                    open_seg = contact
+            else:
+                open_seg = contact
+            if open_seg.is_empty:
+                continue
+            # Largest contiguous open segment must exceed the minimum.
+            if hasattr(open_seg, "geoms"):
+                seg_lens = [g.length for g in open_seg.geoms]
+            else:
+                seg_lens = [open_seg.length]
+            if max(seg_lens, default=0.0) >= open_min:
+                G.add_edge(a_id, b_id, type="via_opening")
+
+    # --- post-fix: a via_window edge between two interior rooms is a
+    # misclassified door (real interior windows are rare and ResPlan
+    # should not have any after fix_plans.py); promote to via_door so
+    # the graph reflects the truth that those rooms are connected by a
+    # real walkable opening. ---
+    INTERIOR = {"living", "kitchen", "bedroom", "bathroom",
+                "storage", "stair"}
+    for u, v, d in list(G.edges(data=True)):
+        if d.get("type") != "via_window":
+            continue
+        tu = G.nodes[u].get("type")
+        tv = G.nodes[v].get("type")
+        if tu in INTERIOR and tv in INTERIOR:
+            G[u][v]["type"] = "via_door"
+
+    # --- fallback: connect remaining isolated components ---
+    # Only as a last resort to keep the graph in one piece — labelled
+    # ``fallback`` so it is distinguishable from genuine connections.
+    if G.number_of_nodes() > 1:
+        components = list(nx.connected_components(G))
+        if len(components) > 1:
+            components.sort(key=len, reverse=True)
+            main_comp = components[0]
+            for comp in components[1:]:
+                best_dist = float("inf")
+                best_pair = None
+                for cn in comp:
+                    cg = G.nodes[cn]["geometry"]
+                    for mn in main_comp:
+                        d = cg.distance(G.nodes[mn]["geometry"])
+                        if d < best_dist:
+                            best_dist = d
+                            best_pair = (cn, mn)
+                if best_pair is not None:
+                    G.add_edge(best_pair[0], best_pair[1],
+                               type="fallback")
+                    main_comp = main_comp | comp
+
     return G
 
 # -----------------------------
@@ -334,6 +566,8 @@ def plot_plan_and_graph(plan: Dict[str, Any],
         "bathroom":   dict(color="magenta",   shape="D", size=260, edgecolor="black"),
         "kitchen":    dict(color="yellow",    shape="^", size=300, edgecolor="black"),
         "balcony":    dict(color="lightgray", shape="X", size=260, edgecolor="black"),
+        "storage":    dict(color="#a37c52",   shape="p", size=260, edgecolor="black"),
+        "stair":      dict(color="#9e9ac8",   shape="h", size=260, edgecolor="black"),
         "front_door": dict(color="red",       shape="*", size=420, edgecolor="black"),
     }
 
@@ -364,10 +598,13 @@ def plot_plan_and_graph(plan: Dict[str, Any],
 
     # edges by type
     edge_style = {
-        "direct":     dict(color="darkred",   width=2.0,  style="-"),
-        "adjacency":  dict(color="darkgreen", width=1.5,  style="--"),
-        "via_door":   dict(color="darkblue",  width=1.2,  style="-"),
-        "via_window": dict(color="orange",    width=1.0,  style=":"),
+        "direct":      dict(color="darkred",   width=2.0,  style="-"),
+        "via_door":    dict(color="darkblue",  width=1.2,  style="-"),
+        "via_window":  dict(color="orange",    width=1.0,  style=":"),
+        "via_opening": dict(color="darkgreen", width=1.5,  style="--"),
+        # legacy edge name still rendered for backwards compatibility
+        "adjacency":   dict(color="darkgreen", width=1.5,  style="--"),
+        "fallback":    dict(color="gray",      width=0.8,  style=":"),
     }
     for etype, style in edge_style.items():
         elist = [(u,v) for u,v,d in G.edges(data=True) if d.get("type")==etype and u in pos and v in pos]
