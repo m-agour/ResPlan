@@ -1,0 +1,204 @@
+{
+  "majority_class": {
+    "accuracy": 0.5485453564244713,
+    "macro_f1": 0.17711633506526422,
+    "class": "via_door"
+  },
+  "Random Forest": {
+    "accuracy": 0.858313300299269,
+    "macro_f1": 0.8491506331450974,
+    "weighted_f1": 0.8603524367647286,
+    "val_accuracy": 0.8515093693429229,
+    "per_class_f1": {
+      "via_door": 0.8741880015284678,
+      "adjacency": 0.8231872562628065,
+      "via_window": 0.7122545700744752,
+      "direct": 0.9869727047146402
+    },
+    "train_time_s": 16.42983651161194,
+    "top_features": [
+      {
+        "name": "pair_balcony_bathroom",
+        "importance": 0.11120017824889762
+      },
+      {
+        "name": "area_ratio",
+        "importance": 0.0781127320012664
+      },
+      {
+        "name": "pair_front_door_living",
+        "importance": 0.07025441013679183
+      },
+      {
+        "name": "area_min",
+        "importance": 0.06558666654393557
+      },
+      {
+        "name": "shared_area_buf0",
+        "importance": 0.044803664723701876
+      },
+      {
+        "name": "shared_len_buf0",
+        "importance": 0.0390740015145683
+      },
+      {
+        "name": "area_max",
+        "importance": 0.03764601631350775
+      },
+      {
+        "name": "pair_bedroom_living",
+        "importance": 0.037253611762921524
+      },
+      {
+        "name": "degree_v",
+        "importance": 0.03414066151753198
+      },
+      {
+        "name": "shared_len_buf1",
+        "importance": 0.0335373720546055
+      }
+    ]
+  },
+  "Gradient Boosting": {
+    "accuracy": 0.8691556689398028,
+    "macro_f1": 0.8493879987311697,
+    "weighted_f1": 0.8684652720975998,
+    "val_accuracy": 0.8653554479181956,
+    "per_class_f1": {
+      "via_door": 0.891099662462249,
+      "adjacency": 0.8212448373306283,
+      "via_window": 0.6991869918699187,
+      "direct": 0.9860205032618826
+    },
+    "train_time_s": 1984.0743613243103,
+    "top_features": [
+      {
+        "name": "pair_front_door_living",
+        "importance": 0.20308433163979753
+      },
+      {
+        "name": "pair_bedroom_living",
+        "importance": 0.11821573144532897
+      },
+      {
+        "name": "degree_u",
+        "importance": 0.09965779542348052
+      },
+      {
+        "name": "area_ratio",
+        "importance": 0.09016497591107317
+      },
+      {
+        "name": "degree_v",
+        "importance": 0.059691629795921235
+      },
+      {
+        "name": "pair_balcony_bathroom",
+        "importance": 0.0510986363577721
+      },
+      {
+        "name": "shared_len_buf5",
+        "importance": 0.03818335199153507
+      },
+      {
+        "name": "shared_area_buf5",
+        "importance": 0.03302305597995841
+      },
+      {
+        "name": "pair_bathroom_living",
+        "importance": 0.0313467733138807
+      },
+      {
+        "name": "pair_balcony_bedroom",
+        "importance": 0.03102307699558305
+      }
+    ]
+  },
+  "MLP": {
+    "accuracy": 0.8659176764951185,
+    "macro_f1": 0.8350009065692624,
+    "weighted_f1": 0.8650780111477391,
+    "val_accuracy": 0.8630559225011009,
+    "per_class_f1": {
+      "via_door": 0.8889586228538127,
+      "adjacency": 0.8203086112493778,
+      "via_window": 0.6471095772217429,
+      "direct": 0.9836268149521161
+    },
+    "train_time_s": 29.593971252441406
+  },
+  "pipeline": {
+    "edge_detection": {
+      "precision": 0.968692180348622,
+      "recall": 0.9760584801059706,
+      "f1": 0.9723613792429314
+    },
+    "type_accuracy_majority": 0.5437044483538578,
+    "type_accuracy_classifier": 0.8669514953505906,
+    "classifier": "Gradient Boosting",
+    "improvement_pp": 32.324704699673276,
+    "n_typed_edges": 19895
+  },
+  "_meta": {
+    "n_features": 47,
+    "feature_names": [
+      "area_max",
+      "area_min",
+      "area_ratio",
+      "area_sum",
+      "aspect_ratio_u",
+      "aspect_ratio_v",
+      "bbox_overlap_area",
+      "bbox_overlap_x",
+      "bbox_overlap_y",
+      "centroid_angle",
+      "centroid_dist",
+      "centroid_dx",
+      "centroid_dy",
+      "degree_max",
+      "degree_min",
+      "degree_u",
+      "degree_v",
+      "min_distance",
+      "pair_balcony_balcony",
+      "pair_balcony_bathroom",
+      "pair_balcony_bedroom",
+      "pair_balcony_front_door",
+      "pair_balcony_kitchen",
+      "pair_balcony_living",
+      "pair_bathroom_bathroom",
+      "pair_bathroom_bedroom",
+      "pair_bathroom_front_door",
+      "pair_bathroom_kitchen",
+      "pair_bathroom_living",
+      "pair_bedroom_bedroom",
+      "pair_bedroom_front_door",
+      "pair_bedroom_kitchen",
+      "pair_bedroom_living",
+      "pair_front_door_front_door",
+      "pair_front_door_kitchen",
+      "pair_front_door_living",
+      "pair_kitchen_kitchen",
+      "pair_kitchen_living",
+      "pair_living_living",
+      "shared_area_buf0",
+      "shared_area_buf1",
+      "shared_area_buf2",
+      "shared_area_buf5",
+      "shared_len_buf0",
+      "shared_len_buf1",
+      "shared_len_buf2",
+      "shared_len_buf5"
+    ],
+    "edge_types": [
+      "via_door",
+      "adjacency",
+      "via_window",
+      "direct"
+    ],
+    "n_train_edges": 163811,
+    "n_val_edges": 20439,
+    "n_test_edges": 20383,
+    "buffer_size": 2.0
+  }
+}

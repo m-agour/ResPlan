@@ -1,6 +1,37 @@
+ResPlan is released under two licences, one for the data and one for the code.
+
+================================================================================
+DATA: ResPlan.pkl, split.json, croissant.json
+================================================================================
+
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Scope of this grant. The dataset consists of derived geometric representations
+(polygon coordinates and room-connectivity graphs) recovered by computer vision
+from publicly accessible real-estate listing renderings. This licence is granted
+over the contributions the authors hold rights in: the annotations, the semantic
+taxonomy, the room-connectivity graph construction, the metric-scale conversion,
+the curation and filtering decisions, and the canonical splits.
+
+The underlying spatial arrangement of a building is a matter of fact rather than
+creative expression, and facts are not subject to copyright. No licence is
+therefore asserted, required, or granted over the spatial arrangements
+themselves. No source images, drawings, listing text, prices, addresses,
+geolocation, or personally identifying information are contained in this release.
+
+Takedown. Rights holders who believe a specific plan should not be distributed
+may request its removal. Requests are acknowledged within 7 days and the plan is
+removed in the next release, with the removed identifier recorded so that
+downstream users can update their splits. See TAKEDOWN.md.
+
+================================================================================
+CODE: resplan_utils.py, ResPlan_demo.ipynb, baselines/
+================================================================================
+
 MIT License
 
-Copyright (c) 2025 Mohamed Abouagour
+Copyright (c) 2025 The ResPlan Authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

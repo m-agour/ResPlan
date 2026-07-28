@@ -1,0 +1,36 @@
+{
+  "cvae": {
+    "room_count_acc": 1.0,
+    "adj_satisfaction": 0.5972147610586453,
+    "boundary_iou": 0.797684486483392
+  },
+  "cvae_graph": {
+    "room_count_acc": 1.0,
+    "adj_satisfaction": 0.5992566276042488,
+    "boundary_iou": 0.8017304992892665
+  },
+  "_meta": {
+    "n_train": 13053,
+    "n_val": 1632,
+    "n_test": 1632,
+    "max_per_type": 8,
+    "layout_dim": 160,
+    "latent_dim": 128,
+    "hidden_dim": 512,
+    "epochs": 500,
+    "lr": 0.001,
+    "beta_max": 0.5,
+    "warmup_epochs": 100,
+    "patience": 80,
+    "seed": 42,
+    "samples": 1,
+    "device": "cuda",
+    "max_rooms_per_type": {
+      "bedroom": 7,
+      "bathroom": 7,
+      "kitchen": 3,
+      "living": 4,
+      "balcony": 9
+    }
+  }
+}

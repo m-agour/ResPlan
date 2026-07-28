@@ -1,0 +1,38 @@
+{
+  "proximity": {
+    "precision": 0.581897235710432,
+    "recall": 0.8995241132316146,
+    "f1": 0.706659986125029,
+    "type_acc": 0.5485453564244713
+  },
+  "shared_boundary": {
+    "precision": 0.968692180348622,
+    "recall": 0.9760584801059706,
+    "f1": 0.9723613792429314,
+    "type_acc": 0.5485453564244713
+  },
+  "complete": {
+    "precision": 0.32740619378051916,
+    "recall": 1.0,
+    "f1": 0.4933021938794033,
+    "type_acc": 0.5485453564244713
+  },
+  "plan_to_graph": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "type_acc": 1.0
+  },
+  "edge_type_distribution": {
+    "via_door": 11181,
+    "adjacency": 6938,
+    "direct": 1596,
+    "via_window": 668
+  },
+  "total_test_edges": 20383,
+  "majority_type": "via_door",
+  "_meta": {
+    "n_plans": 1632,
+    "buffer": 2.0
+  }
+}

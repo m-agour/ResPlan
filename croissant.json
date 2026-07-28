@@ -1,0 +1,96 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataBiases": "cr:dataBiases",
+    "dataCollection": "cr:dataCollection",
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isEnumeration": "cr:isEnumeration",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "personalSensitiveInformation": "cr:personalSensitiveInformation",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform",
+    "wd": "https://www.wikidata.org/wiki/"
+  },
+  "alternateName": "A Large-Scale Vector-Graph Dataset of Residential Floor Plans",
+  "conformsTo": "http://mlcommons.org/croissant/1.0",
+  "license": {
+    "@type": "sc:CreativeWork",
+    "name": "CC BY-NC-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+  },
+  "distribution": [
+    {
+      "contentUrl": "https://www.kaggle.com/api/v1/datasets/download/resplan/resplan?datasetVersionNumber=6",
+      "contentSize": "97.508 MB",
+      "md5": "Sji1YKOjHxE3RZtAQL7R8w==",
+      "encodingFormat": "application/zip",
+      "@id": "archive.zip",
+      "@type": "cr:FileObject",
+      "name": "archive.zip",
+      "description": "Archive containing all the contents of the ResPlan dataset"
+    }
+  ],
+  "version": 6,
+  "keywords": [],
+  "isAccessibleForFree": true,
+  "includedInDataCatalog": {
+    "@type": "sc:DataCatalog",
+    "name": "Kaggle",
+    "url": "https://www.kaggle.com"
+  },
+  "creator": {
+    "@type": "sc:Person",
+    "name": "ResPlan",
+    "url": "/resplan",
+    "image": "https://storage.googleapis.com/kaggle-avatars/thumbnails/27008232-kg.png?t=2025-08-26-20-50-46"
+  },
+  "publisher": {
+    "@type": "sc:Organization",
+    "name": "Kaggle",
+    "url": "https://www.kaggle.com/organizations/kaggle",
+    "image": "https://storage.googleapis.com/kaggle-organizations/4/thumbnail.png"
+  },
+  "thumbnailUrl": "https://storage.googleapis.com/kaggle-datasets-images/7489745/11913382/eba692e42b1f108886f27db2abc7464a/dataset-card.png?t=2025-05-22-20-20-03",
+  "dateModified": "2025-09-26T15:27:16.397",
+  "datePublished": "2025-05-22T20:13:44.7587694",
+  "@type": "sc:Dataset",
+  "name": "ResPlan",
+  "url": "https://www.kaggle.com/datasets/resplan/resplan/versions/6",
+  "description": "**ResPlan** is a large-scale, high-quality dataset of 17,000 residential floor plans designed for spatial AI applications. Each plan includes clean vector geometries and rich semantic annotations for architectural elements (e.g., walls, doors, windows) and room types (e.g., bedrooms, kitchens, bathrooms). In addition to polygonal geometry, **ResPlan** provides graph-based representations capturing room connectivity and adjacency relationships. This dual-format design supports tasks in generative modeling, robotics, simulation, and spatial reasoning.\n\n**GitHub repo** (*open for contibutions*): ANONYMIZED-FOR-REVIEW\n\n\nIf you use **ResPlan** in research, please cite:\n<a href=\"ANONYMIZED-FOR-REVIEW\" target=\"_self\">\n  <img alt=\"\" src=\"https://img.shields.io/badge/DOI-ANONYMIZED-FOR-REVIEW-blue\">\n</a>\nAnonymous Authors (2025). *ResPlan: A Large-Scale Vector-Graph Dataset of 17,000 Residential Floor Plans*. arXiv:ANONYMIZED. ANONYMIZED-FOR-REVIEW\n\n**BibTeX (paper)**\n\n```bibtex\n@article{AnonymousResPlan,\n  title   = {ResPlan: A Large-Scale Vector-Graph Dataset of 17,000 Residential Floor Plans},\n  author  = {Anonymous Authors},\n  journal = {arXiv preprint arXiv:ANONYMIZED},\n  year    = {2025},\n  doi     = {ANONYMIZED-FOR-REVIEW},\n  url     = {ANONYMIZED-FOR-REVIEW\n}\n```",
+  "dataCollection": "Derived from publicly accessible online real-estate listing pages serving South Asian residential markets. Only public, non-paywalled pages were accessed; no rate-limit, login-wall or other access-control mechanism was circumvented, and platform terms of service were reviewed before collection. Source platform identities are withheld to comply with platform access terms, following the convention used by the LIFULL HOME'S dataset. Rendered listing images were converted to vector geometry by a computer-vision pipeline (colour/texture segmentation, OCR of printed room labels, contour tracing, and geometric post-processing). Approximately 27,000 raw plans were collected; automated quality checks discarded layouts with degenerate geometry, missing structural elements, disconnected interiors or ambiguous labels, leaving 17,000 plans (37% rejection rate). The released dataset contains only derived geometric representations; no source images are redistributed.",
+  "dataBiases": "Geographic and architectural bias: all plans originate from South Asian residential markets, so layout conventions, room-type distributions and unit sizes are not representative of Western or East Asian residential architecture. Cross-dataset transfer experiments quantify this: a room-labeling model trained on ResPlan loses substantial accuracy when evaluated on RPLAN (Chinese) or MSD (Swiss), and vice versa. Scope bias: single-floor unit-level layouts only, with no multi-storey circulation, furniture or 3D information. Representation bias: wall thickness is normalised per plan, so within-plan variation between structural walls and thin partitions is not preserved. Redundancy: a geometry-based near-duplicate scan (dihedral-invariant label-raster IoU >= 0.90) identifies 1,170 redundant plans (6.9% of the dataset) in 931 clusters, of which 154 test-split plans have a near-duplicate in the training split; a deduplication-aware split is distributed alongside the canonical split. Annotation artefacts: 0.52% of room polygons exceed 30 vertices, predominantly jagged contours arising from raster vectorisation rather than genuine architectural geometry.",
+  "personalSensitiveInformation": "None. The released dataset consists exclusively of derived geometric representations (polygon coordinates and room-connectivity graphs). No source images, listing text, prices, addresses, geolocation, agent or owner identities, dates, or any other personally identifying or listing-level identifying information are retained. Plans are identified only by an arbitrary numeric index. A public takedown policy allows rights holders to request removal of specific plan IDs."
+}

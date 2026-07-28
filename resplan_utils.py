@@ -21,7 +21,6 @@ from typing import Iterable, List, Dict, Any, Tuple, Optional, Union
 
 import numpy as np
 import cv2
-import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
 from shapely.geometry import (
@@ -44,7 +43,7 @@ CATEGORY_COLORS: Dict[str, str] = {
     "wall": "#ffd92f",       # yellow
     "front_door": "#a63603", # dark reddish-brown
     "balcony": "#b3b3b3",    # dark gray
-    "storage": "#a37c52",    # brown
+    "storage": "#FF8C69",    # salmon
     "stair": "#9e9ac8",      # purple
 }
 
@@ -207,7 +206,7 @@ def plot_plan(plan: Dict[str, Any],
     if categories is None:
         categories = ["living","bedroom","bathroom","kitchen","storage","stair","door","window","wall","front_door","balcony"]
 
-    geoms, color_list, present = [], [], []
+    geoms, color_list, edgecolor_list, linewidth_list, present = [], [], [], [], []
     for key in categories:
         geom = plan.get(key)
         if geom is None:
@@ -217,15 +216,18 @@ def plot_plan(plan: Dict[str, Any],
             continue
         geoms.extend(parts)
         color_list.extend([colors.get(key, "#000000")] * len(parts))
+        edgecolor_list.extend(["none" if key == "wall" else "black"] * len(parts))
+        linewidth_list.extend([0 if key == "wall" else 0.5] * len(parts))
         present.append(key)
 
     if not geoms:
         raise ValueError("No geometries to plot.")
 
+    import geopandas as gpd  # imported lazily: only needed for plotting
     gseries = gpd.GeoSeries(geoms)
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
-    gseries.plot(ax=ax, color=color_list, edgecolor="black", linewidth=0.5)
+    gseries.plot(ax=ax, color=color_list, edgecolor=edgecolor_list, linewidth=linewidth_list)
     ax.set_aspect("equal", adjustable="box")
     ax.set_axis_off()
 
@@ -235,7 +237,7 @@ def plot_plan(plan: Dict[str, Any],
     if legend:
         from matplotlib.patches import Patch
         uniq_present = list(dict.fromkeys(present))  # preserve order
-        handles = [Patch(facecolor=colors.get(k, "#000000"), edgecolor="black", label=k.replace("_"," ")) for k in uniq_present]
+        handles = [Patch(facecolor=colors.get(k, "#000000"), edgecolor="none" if k == "wall" else "black", linewidth=0 if k == "wall" else 0.5, label=k.replace("_"," ")) for k in uniq_present]
         ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1,1), frameon=False)
 
     if tight:
@@ -618,3 +620,58 @@ def plot_plan_and_graph(plan: Dict[str, Any],
         ax.set_title(title)
     plt.tight_layout()
     return ax
+
+
+# ─── Paper-compatible graphs ────────────────────────────────────────────────
+def add_adjacency_edges(graph_or_plan,
+                        wall_gap: float = 4.0,
+                        min_overlap_area: float = 5.0):
+    """Convert a graph to the edge taxonomy used in the paper and on Kaggle.
+
+    ``plan_to_graph`` implements a deliberately strict definition in which two
+    rooms are only linked when their shared boundary is actually open
+    (``via_opening``). The paper, the Kaggle release, and all reported
+    benchmark numbers instead use a broader ``adjacency`` relation that also
+    fires for rooms separated only by a wall. This function performs that
+    conversion in place:
+
+      1. ``via_opening`` and ``fallback`` edges are relabelled ``adjacency``.
+      2. ``adjacency`` edges are added between any two rooms whose polygons lie
+         within ``wall_gap`` units of one another, i.e. are separated by at most
+         a wall, without overwriting existing typed edges.
+
+    The result uses the four types documented in the paper: ``via_door``,
+    ``adjacency``, ``via_window`` and ``direct``.
+
+    Accepts either a ``networkx.Graph`` (as returned by ``plan_to_graph``) or a
+    plan dict carrying a ``"graph"`` key, and returns the same kind of object.
+
+    >>> G = plan_to_graph(plan)
+    >>> G = add_adjacency_edges(G)      # now matches the paper / Kaggle
+    """
+    from itertools import combinations
+
+    is_plan = isinstance(graph_or_plan, dict)
+    g = graph_or_plan.get("graph") if is_plan else graph_or_plan
+    if g is None or g.number_of_nodes() < 2:
+        return graph_or_plan
+
+    for _, _, d in g.edges(data=True):
+        if d.get("type") in ("via_opening", "fallback"):
+            d["type"] = "adjacency"
+
+    nodes = list(g.nodes())
+    geoms = {n: g.nodes[n].get("geometry") for n in nodes}
+    for u, v in combinations(nodes, 2):
+        if g.has_edge(u, v):
+            continue
+        gu, gv = geoms[u], geoms[v]
+        if gu is None or gv is None or gu.is_empty or gv.is_empty:
+            continue
+        if gu.distance(gv) > wall_gap:
+            continue
+        inter = gu.buffer(wall_gap / 2 + 0.01).intersection(
+            gv.buffer(wall_gap / 2 + 0.01))
+        if inter.area > min_overlap_area:
+            g.add_edge(u, v, type="adjacency")
+    return graph_or_plan
